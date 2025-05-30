@@ -13,6 +13,7 @@ def lambda_handler(event, context):
     print("Processando requisição para atualizar item")
 
     try:
+        item_id = event.get("pathParameters", {}).get("item_id")
         body = json.loads(event["body"])
 
         if "status" in body and body["status"] not in ["TODO", "DONE"]:
@@ -25,24 +26,15 @@ def lambda_handler(event, context):
             }
             return response
 
-        # campos obrigatórios
-        if not all(key in body for key in ["pk", "itemId"]):
-            response = {
-                "statusCode": 400,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps(
-                    {"success": False, "message": "pk e itemId são obrigatórios"}
-                ),
-            }
-            return response
-
-        formatted_pk = f"LIST#{body['pk']}"
-        formatted_sk = f"ITEM#{body['itemId']}"
 
         # Verifica existência do item
-        existing_item = table.get_item(
-            Key={"PK": formatted_pk, "SK": formatted_sk}
-        ).get("Item")
+        query_result = table.query(
+            IndexName="item_id",
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("SK").eq(f"ITEM#{item_id}")
+        ).get("Items")
+
+        existing_item = query_result[0] if query_result else None
+
         if not existing_item:
             response = {
                 "statusCode": 404,
@@ -92,7 +84,7 @@ def lambda_handler(event, context):
 
         # atualização
         update_result = table.update_item(
-            Key={"PK": formatted_pk, "SK": formatted_sk},
+            Key={"PK": existing_item["PK"], "SK": existing_item["SK"]},
             UpdateExpression="SET " + ", ".join(update_expr),
             ExpressionAttributeValues=expr_values,
             ExpressionAttributeNames=expr_names,

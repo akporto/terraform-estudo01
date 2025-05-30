@@ -106,6 +106,12 @@ resource "aws_dynamodb_table" "market_list_table" {
     type = "S"
   }
 
+  global_secondary_index {
+    name            = "item_id"
+    hash_key        = "SK"
+    projection_type = "ALL"
+  }
+
   tags = {
     Environment = var.environment
     Project     = var.project_name
@@ -130,8 +136,11 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
           "dynamodb:Query",
           "dynamodb:Scan"
         ],
-        Effect   = "Allow",
-        Resource = aws_dynamodb_table.market_list_table.arn
+        Effect = "Allow",
+        Resource = [
+          aws_dynamodb_table.market_list_table.arn,
+          "${aws_dynamodb_table.market_list_table.arn}/index/*"
+        ]
       }
     ]
   })

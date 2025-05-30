@@ -9,7 +9,7 @@ TABLE_NAME = os.environ["DYNAMODB_TABLE_NAME"]
 table = dynamodb.Table(TABLE_NAME)
 
 
-def add_handler(event, context):
+def lambda_handler(event, context):
     print("Processando requisição para adicionar item à lista de tarefas")
 
     try:

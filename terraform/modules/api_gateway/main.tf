@@ -14,6 +14,13 @@ resource "aws_api_gateway_resource" "lista_tarefa_resource" {
   path_part   = "lista-tarefa"
 }
 
+# Recurso para o caminho /lista-tarefa/{item_id}
+resource "aws_api_gateway_resource" "lista_tarefa_item_resource" {
+  rest_api_id = aws_api_gateway_rest_api.market_list_api.id
+  parent_id   = aws_api_gateway_resource.lista_tarefa_resource.id
+  path_part   = "{item_id}"
+}
+
 # Método GET para retornar na tela: "Lambda function is running!"
 resource "aws_api_gateway_method" "get_hellow_method" {
   depends_on    = [aws_api_gateway_authorizer.cognito_authorizer]
@@ -59,15 +66,19 @@ resource "aws_api_gateway_integration" "add_item_integration" {
 # Método PUT para atualizar itens
 resource "aws_api_gateway_method" "update_item_method" {
   rest_api_id   = aws_api_gateway_rest_api.market_list_api.id
-  resource_id   = aws_api_gateway_resource.lista_tarefa_resource.id
+  resource_id   = aws_api_gateway_resource.lista_tarefa_item_resource.id
   http_method   = "PUT"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  request_parameters = {
+    "method.request.path.item_id" = true
+  }
 }
 
 # Integração do método PUT com Lambda
 resource "aws_api_gateway_integration" "update_item_integration" {
   rest_api_id             = aws_api_gateway_rest_api.market_list_api.id
-  resource_id             = aws_api_gateway_resource.lista_tarefa_resource.id
+  resource_id             = aws_api_gateway_resource.lista_tarefa_item_resource.id
   http_method             = aws_api_gateway_method.update_item_method.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
@@ -100,6 +111,7 @@ resource "aws_lambda_permission" "api_gateway_lambda_get_lambda" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.market_list_api.execution_arn}/*/*"
 }
+
 
 # Permissão para o API Gateway invocar a função Lambda (POST)
 resource "aws_lambda_permission" "api_gateway_lambda_add_item" {
@@ -156,11 +168,3 @@ resource "aws_api_gateway_stage" "stage" {
   stage_name    = var.environment
 }
 
-# Permissão para invocar a lambda GET items
-resource "aws_lambda_permission" "api_gateway_lambda_get_item" {
-  statement_id  = "AllowAPIGatewayInvokeGet"
-  action        = "lambda:InvokeFunction"
-  function_name = var.lambda_function_get_arn
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.market_list_api.execution_arn}/*/*"
-}
